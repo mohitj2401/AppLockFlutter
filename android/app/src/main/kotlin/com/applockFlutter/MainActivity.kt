@@ -9,14 +9,18 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugins.GeneratedPluginRegistrant
 import java.util.*
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
 
 
 class MainActivity: FlutterActivity() {
@@ -27,85 +31,108 @@ class MainActivity: FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        saveAppData =  applicationContext.getSharedPreferences("save_app_data", Context.MODE_PRIVATE)
-        GeneratedPluginRegistrant.registerWith(FlutterEngine(this))
-        MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, channel).setMethodCallHandler { call, result ->
-            when {
-                call.method.equals("addToLockedApps") -> {
+        saveAppData = applicationContext.getSharedPreferences("save_app_data", Context.MODE_PRIVATE)
+    }
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channel).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "addToLockedApps" -> {
                     val args = call.arguments as HashMap<*, *>
-                    println("$args ----- ARGS")
-                    val greetings = showCustomNotification(args)
-                    result.success(greetings)
+                    val res = showCustomNotification(args)
+                    result.success(res)
                 }
-                call.method.equals("setPasswordInNative") -> {
-                    val args = call.arguments
-                    val editor: SharedPreferences.Editor =   saveAppData!!.edit()
-                    editor.putString("password", "$args")
-                    editor.apply()
-                    result.success("Success")
+                "setPasswordInNative" -> {
+                    val args = call.arguments as? Map<String, String>
+                    val hash = args?.get("hash")
+                    val salt = args?.get("salt")
+                    if (hash != null && salt != null) {
+                        val encryptedPrefs = getEncryptedPrefs(this)
+                        val editor = encryptedPrefs.edit()
+                        editor.putString("password_hash", hash)
+                        editor.putString("password_salt", salt)
+                        editor.apply()
+                        
+                        // Clear plaintext password if it exists
+                        saveAppData?.edit()?.remove("password")?.apply()
+                        
+                        result.success("Success")
+                    } else {
+                        result.error("INVALID_ARGUMENTS", "Hash or salt is null", null)
+                    }
                 }
-                call.method.equals("checkOverlayPermission") -> {
+                "checkOverlayPermission" -> {
                     result.success(Settings.canDrawOverlays(this))
                 }
-                call.method.equals("stopForeground") -> {
+                "stopForeground" -> {
                     stopForegroundService()
+                    result.success(null)
                 }
-                call.method.equals("askOverlayPermission") -> {
+                "askOverlayPermission" -> {
                     result.success(checkOverlayPermission())
                 }
-                call.method.equals("askUsageStatsPermission") -> {
+                "askUsageStatsPermission" -> {
                     if (!isAccessGranted()) {
                         val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
                         startActivity(intent)
                     }
+                    result.success(isAccessGranted())
+                }
+                "checkUsagePermission" -> {
+                    result.success(isAccessGranted())
+                }
+                "isIgnoringBatteryOptimizations" -> {
+                    val powerManager = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                    result.success(powerManager.isIgnoringBatteryOptimizations(packageName))
+                }
+                "requestIgnoreBatteryOptimizations" -> {
+                    val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    intent.data = android.net.Uri.parse("package:$packageName")
+                    startActivity(intent)
+                    result.success(null)
+                }
+                else -> {
+                    result.notImplemented()
                 }
             }
         }
     }
 
     @SuppressLint("CommitPrefEdits", "LaunchActivityFromNotification")
-    private fun showCustomNotification(args: HashMap<*, *>):String {
+    private fun showCustomNotification(args: HashMap<*, *>): String {
         lockedAppList = emptyList()
-//        val mContentView = RemoteViews(packageName, R.layout.list_view)
+        appInfo = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
 
-        appInfo  = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+        val arr = args["app_list"] as? ArrayList<Map<String, *>> ?: return "Error: Invalid app_list"
 
-        val arr : ArrayList<Map<String,*>> = args["app_list"]  as ArrayList<Map<String,*>>
-
-        for (element in arr){
-            run breaking@{
-                for (i in appInfo!!.indices){
-                    if(appInfo!![i].packageName.toString() == element["package_name"].toString()){
-                        val ogList = lockedAppList
-                        lockedAppList = ogList + appInfo!![i]
-                        return@breaking
-                    }
-                }
+        val newList = mutableListOf<ApplicationInfo>()
+        for (element in arr) {
+            val packageName = element["package_name"].toString()
+            appInfo?.find { it.packageName == packageName }?.let {
+                newList.add(it)
             }
         }
+        lockedAppList = newList
 
+        val packageData = lockedAppList.map { it.packageName }
 
-        var packageData:List<String> = emptyList()
-
-        for(element in lockedAppList){
-            val ogList = packageData
-            packageData = ogList + element.packageName
+        saveAppData?.edit()?.apply {
+            remove("app_data")
+            putString("app_data", packageData.toString())
+            apply()
         }
-
-        val editor: SharedPreferences.Editor =  saveAppData!!.edit()
-        editor.remove("app_data")
-        editor.putString("app_data", "$packageData")
-        editor.apply()
 
         startForegroundService()
 
         return "Success"
     }
 
-    private fun setIfServiceClosed(data:String){
-        val editor: SharedPreferences.Editor =  saveAppData!!.edit()
-        editor.putString("is_stopped",data)
-        editor.apply()
+    private fun setIfServiceClosed(data: String) {
+        saveAppData?.edit()?.apply {
+            putString("is_stopped", data)
+            apply()
+        }
     }
 
     private fun startForegroundService() {
@@ -115,12 +142,12 @@ class MainActivity: FlutterActivity() {
         }
     }
 
-   private fun stopForegroundService(){
-       setIfServiceClosed("0")
-       stopService( Intent(this, ForegroundService::class.java))
-   }
+    private fun stopForegroundService() {
+        setIfServiceClosed("0")
+        stopService(Intent(this, ForegroundService::class.java))
+    }
 
-    private fun checkOverlayPermission():Boolean {
+    private fun checkOverlayPermission(): Boolean {
         if (!Settings.canDrawOverlays(this)) {
             val myIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
             startActivity(myIntent)
@@ -130,19 +157,26 @@ class MainActivity: FlutterActivity() {
 
     private fun isAccessGranted(): Boolean {
         return try {
-            val packageManager = packageManager
-            val applicationInfo = packageManager.getApplicationInfo(
-                    packageName, 0
-            )
-            val appOpsManager: AppOpsManager = getSystemService(APP_OPS_SERVICE) as AppOpsManager
+            val applicationInfo = packageManager.getApplicationInfo(packageName, 0)
+            val appOpsManager = getSystemService(APP_OPS_SERVICE) as AppOpsManager
             val mode = appOpsManager.checkOpNoThrow(
-                    AppOpsManager.OPSTR_GET_USAGE_STATS,
-                    applicationInfo.uid, applicationInfo.packageName
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                applicationInfo.uid, applicationInfo.packageName
             )
             mode == AppOpsManager.MODE_ALLOWED
         } catch (e: PackageManager.NameNotFoundException) {
             false
         }
     }
-}
 
+    private fun getEncryptedPrefs(context: Context): SharedPreferences {
+        val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+        return EncryptedSharedPreferences.create(
+            "secure_save_app_data",
+            masterKeyAlias,
+            context,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+}

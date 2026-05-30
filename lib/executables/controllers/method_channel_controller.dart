@@ -3,10 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:get/instance_manager.dart';
 import 'package:get/state_manager.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:app_lock_flutter/executables/controllers/apps_controller.dart';
 import 'package:app_lock_flutter/services/constant.dart';
-import 'package:usage_stats/usage_stats.dart';
+
 
 import 'permission_controller.dart';
 
@@ -41,8 +41,7 @@ class MethodChannelController extends GetxController implements GetxService {
   }
 
   Future<bool> checkUsageStatePermission() async {
-    isUsageStatPermissionGiven =
-        (await UsageStats.checkUsagePermission() ?? false);
+    isUsageStatPermissionGiven = (await platform.invokeMethod('checkUsagePermission') as bool?) ?? false;
     update();
     return isUsageStatPermissionGiven;
   }
@@ -68,12 +67,16 @@ class MethodChannelController extends GetxController implements GetxService {
   }
 
   Future setPassword() async {
-    final prefs = await SharedPreferences.getInstance();
+    const storage = FlutterSecureStorage();
     try {
-      String data = prefs.getString(AppConstants.setPassCode) ?? "";
-      log(data, name: "PASSWORD--");
-      if (data != "") {
-        await platform.invokeMethod('setPasswordInNative', data).then((value) {
+      String hash = await storage.read(key: AppConstants.setPassCode) ?? "";
+      String salt = await storage.read(key: "passcode_salt") ?? "";
+      log("Hash: $hash, Salt: $salt", name: "PASSWORD--");
+      if (hash != "" && salt != "") {
+        await platform.invokeMethod('setPasswordInNative', {
+          "hash": hash,
+          "salt": salt,
+        }).then((value) {
           log("$value", name: "setPasswordInNative CALLED");
         });
       }
@@ -126,6 +129,23 @@ class MethodChannelController extends GetxController implements GetxService {
     } on PlatformException catch (e) {
       log("Failed to Invoke: '${e.message}'.");
       return false;
+    }
+  }
+
+  Future<bool> isIgnoringBatteryOptimizations() async {
+    try {
+      return await platform.invokeMethod('isIgnoringBatteryOptimizations');
+    } on PlatformException catch (e) {
+      log("Failed to Invoke: '${e.message}'.");
+      return false;
+    }
+  }
+
+  Future requestIgnoreBatteryOptimizations() async {
+    try {
+      await platform.invokeMethod('requestIgnoreBatteryOptimizations');
+    } on PlatformException catch (e) {
+      log("Failed to Invoke: '${e.message}'.");
     }
   }
 }

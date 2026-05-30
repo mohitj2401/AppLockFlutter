@@ -1,13 +1,9 @@
 buildscript {
-    ext.kotlin_version = '1.7.10'
+    ext.kotlin_version = '2.2.20'
     repositories {
         google()
         mavenCentral()
-    }
-
-    dependencies {
-        classpath 'com.android.tools.build:gradle:7.1.2'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.7.10"
+        maven { url 'https://jitpack.io' }
     }
 }
 
@@ -15,6 +11,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven { url 'https://jitpack.io' }
     }
 }
 
@@ -26,6 +23,55 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
+subprojects {
+    def fixSdkVersion = { prj ->
+        if (prj.hasProperty('android')) {
+            prj.android {
+                def sdk = prj.android.compileSdkVersion
+                if (sdk != null) {
+                    def sdkStr = sdk.toString()
+                    def version = 0
+                    if (sdkStr.startsWith("android-")) {
+                        version = sdkStr.replace("android-", "").toInteger()
+                    } else if (sdkStr.isInteger()) {
+                        version = sdkStr.toInteger()
+                    }
+                    
+                    if (version > 0 && version < 31) {
+                        compileSdkVersion 31
+                    }
+                }
+            }
+        }
+    }
+    if (project.state.executed) {
+        fixSdkVersion(project)
+    } else {
+        project.afterEvaluate {
+            fixSdkVersion(project)
+        }
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
+}
+
+subprojects {
+    def configureNamespace = { prj ->
+        if (prj.hasProperty('android')) {
+            prj.android {
+                if (namespace == null) {
+                    namespace prj.group
+                }
+            }
+        }
+    }
+    if (project.state.executed) {
+        configureNamespace(project)
+    } else {
+        project.afterEvaluate {
+            configureNamespace(project)
+        }
+    }
 }

@@ -1,10 +1,12 @@
 import 'dart:developer';
 import 'dart:typed_data';
-import 'package:device_apps/device_apps.dart';
+import 'package:installed_apps/installed_apps.dart';
+import 'package:installed_apps/app_info.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:app_lock_flutter/executables/controllers/method_channel_controller.dart';
 import 'package:app_lock_flutter/services/constant.dart';
 import '../../models/application_model.dart';
@@ -18,17 +20,31 @@ class AppsController extends GetxController implements GetxService {
   TextEditingController typeAnswer = TextEditingController();
   TextEditingController checkAnswer = TextEditingController();
   TextEditingController searchApkText = TextEditingController();
-  List<Application> unLockList = [];
+  List<AppInfo> unLockList = [];
   List<ApplicationDataModel> searchedApps = [];
   List<ApplicationDataModel> lockList = [];
   List<String> selectLockList = [];
   bool addToAppsLoading = false;
+  bool hasPasscode = false;
 
   List<String> excludedApps = ["com.android.settings"];
 
   int appSearchUpdate = 1;
   int addRemoveToUnlockUpdate = 2;
   int addRemoveToUnlockUpdateSearch = 3;
+
+  @override
+  void onInit() {
+    super.onInit();
+    checkPasscodeSaved();
+  }
+
+  Future<void> checkPasscodeSaved() async {
+    const storage = FlutterSecureStorage();
+    String? hash = await storage.read(key: AppConstants.setPassCode);
+    hasPasscode = hash != null && hash.isNotEmpty;
+    update();
+  }
 
   changeQuestionIndex(index) {
     selectQuestion = index;
@@ -41,18 +57,17 @@ class AppsController extends GetxController implements GetxService {
     checkAnswer.clear();
   }
 
-  savePasscode(counter) {
-    prefs.setString(AppConstants.setPassCode, counter);
-    Get.find<MethodChannelController>().setPassword();
-    log("${prefs.getString(AppConstants.setPassCode)}", name: "save passcode");
-  }
-
   getPasscode() {
-    return prefs.getString(AppConstants.setPassCode) ?? "";
+    return "";
   }
 
-  removePasscode() {
-    return prefs.remove(AppConstants.setPassCode);
+  Future<void> removePasscode() async {
+    const storage = FlutterSecureStorage();
+    await storage.delete(key: AppConstants.setPassCode);
+    await storage.delete(key: "passcode_salt");
+    await prefs.remove(AppConstants.setPassCode);
+    hasPasscode = false;
+    update();
   }
 
   setSplash() {
@@ -76,10 +91,9 @@ class AppsController extends GetxController implements GetxService {
   }
 
   getAppsData() async {
-    unLockList = await DeviceApps.getInstalledApplications(
-      includeAppIcons: true,
-      includeSystemApps: true,
-      onlyAppsWithLaunchIntent: true,
+    unLockList = await InstalledApps.getInstalledApps(
+      excludeSystemApps: false,
+      withIcon: true,
     );
     excludeApps();
     update();
@@ -127,31 +141,31 @@ class AppsController extends GetxController implements GetxService {
     update();
   }
 
-  addToLockedApps(Application app, context) async {
+  addToLockedApps(AppInfo app, context) async {
     addToAppsLoading = true;
     update([addRemoveToUnlockUpdate]);
     try {
-      if (selectLockList.contains(app.appName)) {
-        selectLockList.remove(app.appName);
-        lockList.removeWhere((em) => em.application!.appName == app.appName);
+      if (selectLockList.contains(app.name)) {
+        selectLockList.remove(app.name);
+        lockList.removeWhere((em) => em.application!.appName == app.name);
         log("REMOVE: $selectLockList");
       } else {
         if (lockList.length < 16) {
-          selectLockList.add(app.appName);
+          selectLockList.add(app.name);
           lockList.add(
             ApplicationDataModel(
               isLocked: true,
               application: ApplicationData(
-                apkFilePath: app.apkFilePath,
-                appName: app.appName,
-                category: "${app.category}",
-                dataDir: "${app.dataDir}",
-                enabled: app.enabled,
-                icon: (app as ApplicationWithIcon).icon,
-                installTimeMillis: "${app.installTimeMillis}",
+                apkFilePath: "",
+                appName: app.name,
+                category: "",
+                dataDir: "",
+                enabled: true,
+                icon: app.icon ?? Uint8List(0),
+                installTimeMillis: "",
                 packageName: app.packageName,
-                systemApp: app.systemApp,
-                updateTimeMillis: '${app.updateTimeMillis}',
+                systemApp: false,
+                updateTimeMillis: "",
                 versionCode: '${app.versionCode}',
                 versionName: '${app.versionName}',
               ),
@@ -191,33 +205,34 @@ class AppsController extends GetxController implements GetxService {
   }
 
   Uint8List getAppIcon(String appName) {
-    return (unLockList[unLockList.indexWhere((element) {
-      return appName == element.appName;
-    })] as ApplicationWithIcon)
-        .icon;
+    final idx = unLockList.indexWhere((element) => appName == element.name);
+    if (idx != -1) {
+      return unLockList[idx].icon ?? Uint8List(0);
+    }
+    return Uint8List(0);
   }
 
   appSearch() {
     searchedApps.clear();
     if (searchApkText.text.length > 2) {
       for (var e in unLockList) {
-        if (e.appName
+        if (e.name
             .toUpperCase()
             .contains(searchApkText.text.toUpperCase().trim())) {
           searchedApps.add(
             ApplicationDataModel(
               isLocked: null,
               application: ApplicationData(
-                apkFilePath: e.apkFilePath,
-                appName: e.appName,
-                category: "${e.category}",
-                dataDir: "${e.dataDir}",
-                enabled: e.enabled,
-                icon: (e as ApplicationWithIcon).icon,
-                installTimeMillis: "${e.installTimeMillis}",
+                apkFilePath: "",
+                appName: e.name,
+                category: "",
+                dataDir: "",
+                enabled: true,
+                icon: e.icon,
+                installTimeMillis: "",
                 packageName: e.packageName,
-                systemApp: e.systemApp,
-                updateTimeMillis: '${e.updateTimeMillis}',
+                systemApp: false,
+                updateTimeMillis: "",
                 versionCode: '${e.versionCode}',
                 versionName: '${e.versionName}',
               ),
