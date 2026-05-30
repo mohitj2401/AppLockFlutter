@@ -16,6 +16,20 @@ class MethodChannelController extends GetxController implements GetxService {
   bool isOverlayPermissionGiven = false;
   bool isUsageStatPermissionGiven = false;
   bool isNotificationPermissionGiven = false;
+  bool isDeviceAdminActive = false;
+  bool isBatteryOptimizationIgnored = false;
+
+  Future<bool> checkAdminStatus() async {
+    isDeviceAdminActive = await isAdminActive();
+    update();
+    return isDeviceAdminActive;
+  }
+
+  Future<bool> checkBatteryStatus() async {
+    isBatteryOptimizationIgnored = await isIgnoringBatteryOptimizations();
+    update();
+    return isBatteryOptimizationIgnored;
+  }
 
   Future<bool> checkOverlayPermission() async {
     try {

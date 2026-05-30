@@ -25,6 +25,80 @@ class UnlockedAppScreen extends StatelessWidget {
       canPop: false,
       child: Scaffold(
         backgroundColor: Theme.of(context).colorScheme.background,
+        drawer: Drawer(
+          backgroundColor: Theme.of(context).colorScheme.background,
+          child: GetBuilder<MethodChannelController>(
+            builder: (state) {
+              return Column(
+                children: [
+                  DrawerHeader(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColorDark,
+                    ),
+                    child: Center(
+                      child: Text(
+                        "Settings",
+                        style: MyFont().subtitle(
+                          color: Colors.white,
+                          fontweight: FontWeight.w600,
+                          fontsize: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    title: Text(
+                      "Uninstall Protection",
+                      style: MyFont().subtitle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      "Prevents app from being uninstalled",
+                      style: MyFont().subtitle(color: Colors.grey, fontsize: 12),
+                    ),
+                    trailing: Switch(
+                      value: state.isDeviceAdminActive,
+                      activeColor: Theme.of(context).primaryColor,
+                      onChanged: (val) async {
+                        if (val) {
+                          await state.requestAdmin();
+                        } else {
+                          await state.removeAdmin();
+                        }
+                        await state.checkAdminStatus();
+                      },
+                    ),
+                  ),
+                  ListTile(
+                    title: Text(
+                      "Ignore Battery Optimization",
+                      style: MyFont().subtitle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      "Essential for background stability",
+                      style: MyFont().subtitle(color: Colors.grey, fontsize: 12),
+                    ),
+                    trailing: Icon(
+                      state.isBatteryOptimizationIgnored
+                          ? Icons.check_circle
+                          : Icons.error_outline,
+                      color: state.isBatteryOptimizationIgnored
+                          ? Theme.of(context).primaryColor
+                          : Colors.orange,
+                    ),
+                    onTap: () async {
+                      if (!state.isBatteryOptimizationIgnored) {
+                        await state.requestIgnoreBatteryOptimizations();
+                        await state.checkBatteryStatus();
+                      } else {
+                        Fluttertoast.showToast(msg: "Already optimized");
+                      }
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.background,
           leading: Padding(
