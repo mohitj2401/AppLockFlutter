@@ -48,7 +48,10 @@ class Window(private val context: Context) {
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN 
+            or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL 
+            or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+            or WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
             PixelFormat.TRANSLUCENT
         )
         layoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
@@ -74,11 +77,23 @@ class Window(private val context: Context) {
                 justUnlocked = false
                 mWindowManager.addView(mView, mParams)
                 Log.d("AppLock", "Window added to WindowManager")
-            } else {
-                Log.d("AppLock", "Window already open, skipping addView")
             }
         } catch (e: Exception) {
             Log.e("AppLock", "Error opening window", e)
+        }
+    }
+
+    fun forceOpen() {
+        try {
+            justUnlocked = false
+            if (mView.parent != null) {
+                mWindowManager.removeView(mView)
+                Log.d("AppLock", "Existing window removed for force re-add")
+            }
+            mWindowManager.addView(mView, mParams)
+            Log.d("AppLock", "Window force added to WindowManager")
+        } catch (e: Exception) {
+            Log.e("AppLock", "Error force opening window", e)
         }
     }
 

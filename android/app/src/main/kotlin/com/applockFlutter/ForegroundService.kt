@@ -23,9 +23,9 @@ class ForegroundService : Service() {
     private var cachedLockedAppList: List<String> = emptyList()
     private lateinit var saveAppData: SharedPreferences
     
-    private var lastProcessedEventTime: Long = System.currentTimeMillis()
     private var currentlyUnlockedPackage: String? = null
     private var lastResumedPackage: String? = null
+    private var lastClass: String? = null
 
     override fun onBind(intent: Intent): IBinder? {
         return null
@@ -64,7 +64,6 @@ class ForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         updateLockedAppCache()
-        lastProcessedEventTime = System.currentTimeMillis()
         return START_STICKY
     }
 
@@ -122,24 +121,29 @@ class ForegroundService : Service() {
         val mUsageStatsManager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
         val time = System.currentTimeMillis()
         
-        // Scan with a small overlap
-        val queryStart = lastProcessedEventTime - 2000
-        val usageEvents = mUsageStatsManager.queryEvents(queryStart, time)
+        // Scan for the most recent event
+        val usageEvents = mUsageStatsManager.queryEvents(time - 5000, time)
         val event = UsageEvents.Event()
+
+        var latestEvent: UsageEvents.Event? = null
 
         while (usageEvents.hasNextEvent()) {
             usageEvents.getNextEvent(event)
-            
             if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                if (event.timeStamp <= lastProcessedEventTime) continue
-                
-                val pkgName = event.packageName
-                val className = event.className ?: ""
-                
-                lastResumedPackage = pkgName
-                lastProcessedEventTime = event.timeStamp
+                if (latestEvent == null || event.timeStamp > latestEvent!!.timeStamp) {
+                    latestEvent = UsageEvents.Event(event)
+                }
+            }
+        }
 
-                // Broad sensitive page detection
+        if (latestEvent != null) {
+            val pkgName = latestEvent!!.packageName
+            val className = latestEvent!!.className ?: ""
+            
+            if (pkgName != lastResumedPackage || className != lastClass) {
+                lastResumedPackage = pkgName
+                lastClass = className
+
                 val isSensitivePage = className.lowercase().contains("admin") || 
                                      className.lowercase().contains("policy") ||
                                      className.lowercase().contains("security") ||
@@ -148,22 +152,17 @@ class ForegroundService : Service() {
                                      pkgName.contains("permissioncontroller") ||
                                      pkgName.contains("packageinstaller")
 
-                Log.d("AppLock", "Event: $pkgName | Class: $className | Sensitive: $isSensitivePage | UnlockedPkg: $currentlyUnlockedPackage")
+                Log.d("AppLock", "Active: $pkgName | Class: $className | Sensitive: $isSensitivePage")
 
                 if (cachedLockedAppList.contains(pkgName) || isSensitivePage) {
-                    // FORCE LOCK if it is a sensitive page OR a different package
                     if (isSensitivePage || pkgName != currentlyUnlockedPackage) {
-                        if (!window.isOpen()) {
-                            Log.d("AppLock", "Attempting to OPEN window for $pkgName")
-                            Handler(Looper.getMainLooper()).post {
-                                window.open()
-                            }
+                        Handler(Looper.getMainLooper()).post {
+                            // Use forceOpen to ensure it stays on top of sensitive system pages
+                            window.forceOpen()
                         }
                     }
                 } else if (pkgName != packageName && !pkgName.contains("launcher")) {
-                    // Close if we moved to an unknown app that is NOT a launcher
                     if (window.isOpen()) {
-                        Log.d("AppLock", "Closing window as we moved to $pkgName")
                         Handler(Looper.getMainLooper()).post { window.close() }
                     }
                 }
@@ -172,7 +171,7 @@ class ForegroundService : Service() {
 
         if (window.wasJustUnlocked()) {
             currentlyUnlockedPackage = lastResumedPackage
-            Log.d("AppLock", "Package $currentlyUnlockedPackage marked as UNLOCKED")
+            Log.d("AppLock", "Session started for $currentlyUnlockedPackage")
         }
     }
 }
