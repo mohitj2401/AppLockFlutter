@@ -34,6 +34,8 @@ class _HomePageState extends State<HomePage> {
       Get.find<AppsController>().getLockedApps();
       Get.find<PermissionController>()
           .getPermission(Permission.ignoreBatteryOptimizations);
+      Get.find<MethodChannelController>().checkAdminStatus();
+      Get.find<MethodChannelController>().checkBatteryStatus();
       getPermissions();
       Get.find<MethodChannelController>().addToLockedAppsMethod();
     });

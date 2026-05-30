@@ -16,6 +16,20 @@ class MethodChannelController extends GetxController implements GetxService {
   bool isOverlayPermissionGiven = false;
   bool isUsageStatPermissionGiven = false;
   bool isNotificationPermissionGiven = false;
+  bool isDeviceAdminActive = false;
+  bool isBatteryOptimizationIgnored = false;
+
+  Future<bool> checkAdminStatus() async {
+    isDeviceAdminActive = await isAdminActive();
+    update();
+    return isDeviceAdminActive;
+  }
+
+  Future<bool> checkBatteryStatus() async {
+    isBatteryOptimizationIgnored = await isIgnoringBatteryOptimizations();
+    update();
+    return isBatteryOptimizationIgnored;
+  }
 
   Future<bool> checkOverlayPermission() async {
     try {
@@ -144,6 +158,31 @@ class MethodChannelController extends GetxController implements GetxService {
   Future requestIgnoreBatteryOptimizations() async {
     try {
       await platform.invokeMethod('requestIgnoreBatteryOptimizations');
+    } on PlatformException catch (e) {
+      log("Failed to Invoke: '${e.message}'.");
+    }
+  }
+
+  Future<bool> isAdminActive() async {
+    try {
+      return await platform.invokeMethod('isAdminActive');
+    } on PlatformException catch (e) {
+      log("Failed to Invoke: '${e.message}'.");
+      return false;
+    }
+  }
+
+  Future requestAdmin() async {
+    try {
+      await platform.invokeMethod('requestAdmin');
+    } on PlatformException catch (e) {
+      log("Failed to Invoke: '${e.message}'.");
+    }
+  }
+
+  Future removeAdmin() async {
+    try {
+      await platform.invokeMethod('removeAdmin');
     } on PlatformException catch (e) {
       log("Failed to Invoke: '${e.message}'.");
     }
