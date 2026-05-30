@@ -12,6 +12,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import java.util.*
 
@@ -120,34 +121,49 @@ class ForegroundService : Service() {
 
         val mUsageStatsManager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
         val time = System.currentTimeMillis()
-        val usageEvents = mUsageStatsManager.queryEvents(lastProcessedEventTime, time)
+        
+        // Scan with a small overlap
+        val queryStart = lastProcessedEventTime - 2000
+        val usageEvents = mUsageStatsManager.queryEvents(queryStart, time)
         val event = UsageEvents.Event()
 
         while (usageEvents.hasNextEvent()) {
             usageEvents.getNextEvent(event)
             
             if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                if (event.timeStamp <= lastProcessedEventTime) continue
+                
                 val pkgName = event.packageName
                 val className = event.className ?: ""
                 
                 lastResumedPackage = pkgName
                 lastProcessedEventTime = event.timeStamp
 
-                // Improved sensitive page detection
-                val isSensitivePage = className.lowercase().contains("deviceadmin") || 
-                                     className.lowercase().contains("devicepolicy")
+                // Broad sensitive page detection
+                val isSensitivePage = className.lowercase().contains("admin") || 
+                                     className.lowercase().contains("policy") ||
+                                     className.lowercase().contains("security") ||
+                                     className.lowercase().contains("privacy") ||
+                                     className.lowercase().contains("accessibility") ||
+                                     pkgName.contains("permissioncontroller") ||
+                                     pkgName.contains("packageinstaller")
 
-                if (cachedLockedAppList.contains(pkgName)) {
-                    // Lock if package changed OR it's a sensitive page within an unlocked package
-                    if (pkgName != currentlyUnlockedPackage || isSensitivePage) {
+                Log.d("AppLock", "Event: $pkgName | Class: $className | Sensitive: $isSensitivePage | UnlockedPkg: $currentlyUnlockedPackage")
+
+                if (cachedLockedAppList.contains(pkgName) || isSensitivePage) {
+                    // FORCE LOCK if it is a sensitive page OR a different package
+                    if (isSensitivePage || pkgName != currentlyUnlockedPackage) {
                         if (!window.isOpen()) {
+                            Log.d("AppLock", "Attempting to OPEN window for $pkgName")
                             Handler(Looper.getMainLooper()).post {
                                 window.open()
                             }
                         }
                     }
-                } else if (pkgName != packageName) {
+                } else if (pkgName != packageName && !pkgName.contains("launcher")) {
+                    // Close if we moved to an unknown app that is NOT a launcher
                     if (window.isOpen()) {
+                        Log.d("AppLock", "Closing window as we moved to $pkgName")
                         Handler(Looper.getMainLooper()).post { window.close() }
                     }
                 }
@@ -156,6 +172,7 @@ class ForegroundService : Service() {
 
         if (window.wasJustUnlocked()) {
             currentlyUnlockedPackage = lastResumedPackage
+            Log.d("AppLock", "Package $currentlyUnlockedPackage marked as UNLOCKED")
         }
     }
 }

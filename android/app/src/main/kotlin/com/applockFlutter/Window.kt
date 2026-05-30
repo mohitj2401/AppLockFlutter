@@ -73,9 +73,12 @@ class Window(private val context: Context) {
             if (mView.parent == null) {
                 justUnlocked = false
                 mWindowManager.addView(mView, mParams)
+                Log.d("AppLock", "Window added to WindowManager")
+            } else {
+                Log.d("AppLock", "Window already open, skipping addView")
             }
         } catch (e: Exception) {
-            Log.e("Window", "Error opening window", e)
+            Log.e("AppLock", "Error opening window", e)
         }
     }
 
@@ -85,7 +88,10 @@ class Window(private val context: Context) {
     
     fun wasJustUnlocked(): Boolean {
         val result = justUnlocked
-        justUnlocked = false
+        if (result) {
+            justUnlocked = false
+            Log.d("AppLock", "Reporting wasJustUnlocked = true")
+        }
         return result
     }
 
@@ -93,9 +99,10 @@ class Window(private val context: Context) {
         try {
             if (mView.parent != null) {
                 mWindowManager.removeView(mView)
+                Log.d("AppLock", "Window removed from WindowManager")
             }
         } catch (e: Exception) {
-            Log.e("Window", "Error closing window", e)
+            Log.e("AppLock", "Error closing window", e)
         }
     }
 
@@ -136,11 +143,13 @@ class Window(private val context: Context) {
             if (storedHash != null && salt != null) {
                 val hashedEntered = sha256(pinCode + salt)
                 if (hashedEntered == storedHash) {
+                    Log.d("AppLock", "Correct password entered")
                     failedAttempts = 0
                     txtView!!.visibility = View.GONE
                     justUnlocked = true
                     close()
                 } else {
+                    Log.d("AppLock", "Invalid password attempt")
                     failedAttempts++
                     if (failedAttempts >= 5) {
                         isLockedOut = true
@@ -159,11 +168,12 @@ class Window(private val context: Context) {
                     }
                 }
             } else {
+                Log.d("AppLock", "No password stored, auto-unlocking")
                 justUnlocked = true
                 close()
             }
         } catch (e: Exception) {
-            Log.e("Window", "Error in doneButton", e)
+            Log.e("AppLock", "Error in doneButton", e)
         }
     }
 }
