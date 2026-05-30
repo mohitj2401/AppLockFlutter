@@ -17,11 +17,14 @@ import java.util.*
 
 class ForegroundService : Service() {
     private var timer: Timer = Timer()
-    private var timerReload: Long = 100 // Reduced from 500ms to 100ms for faster detection
-    private var currentAppActivityList = arrayListOf<String>()
+    private var timerReload: Long = 100 
     private lateinit var mHomeWatcher: HomeWatcher
     private var cachedLockedAppList: List<String> = emptyList()
     private lateinit var saveAppData: SharedPreferences
+    
+    private var lastProcessedEventTime: Long = System.currentTimeMillis()
+    private var currentlyUnlockedPackage: String? = null
+    private var lastResumedPackage: String? = null
 
     override fun onBind(intent: Intent): IBinder? {
         return null
@@ -59,30 +62,22 @@ class ForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        updateLockedAppCache() // Refresh cache when service is started/restarted
+        updateLockedAppCache()
+        lastProcessedEventTime = System.currentTimeMillis()
         return START_STICKY
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val isStopped = saveAppData.getString("is_stopped", "0")
-        
         if (isStopped == "1") {
             val restartServiceIntent = Intent(applicationContext, this.javaClass)
             restartServiceIntent.setPackage(packageName)
-            
             val restartServicePendingIntent = PendingIntent.getService(
-                applicationContext, 
-                1, 
-                restartServiceIntent, 
+                applicationContext, 1, restartServiceIntent, 
                 PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
             )
-            
             val alarmService = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            alarmService.set(
-                AlarmManager.ELAPSED_REALTIME, 
-                SystemClock.elapsedRealtime() + 1000, 
-                restartServicePendingIntent
-            )
+            alarmService.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 1000, restartServicePendingIntent)
         }
         super.onTaskRemoved(rootIntent)
     }
@@ -91,16 +86,12 @@ class ForegroundService : Service() {
         val window = Window(this)
         mHomeWatcher.setOnHomePressedListener(object : HomeWatcher.OnHomePressedListener {
             override fun onHomePressed() {
-                currentAppActivityList.clear()
-                if (window.isOpen()) {
-                    window.close()
-                }
+                currentlyUnlockedPackage = null
+                if (window.isOpen()) window.close()
             }
             override fun onHomeLongPressed() {
-                currentAppActivityList.clear()
-                if (window.isOpen()) {
-                    window.close()
-                }
+                currentlyUnlockedPackage = null
+                if (window.isOpen()) window.close()
             }
         })
         mHomeWatcher.startWatch()
@@ -122,7 +113,6 @@ class ForegroundService : Service() {
     }
 
     fun isServiceRunning(window: Window) {
-        // Use cached list to avoid repeated SharedPreferences IO
         if (cachedLockedAppList.isEmpty()) {
             updateLockedAppCache()
             if (cachedLockedAppList.isEmpty()) return
@@ -130,30 +120,42 @@ class ForegroundService : Service() {
 
         val mUsageStatsManager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
         val time = System.currentTimeMillis()
-
-        // We use a slightly larger window (1000ms) to ensure we don't miss any events 
-        // that Android might report with a slight delay.
-        val usageEvents = mUsageStatsManager.queryEvents(time - 1000, time)
+        val usageEvents = mUsageStatsManager.queryEvents(lastProcessedEventTime, time)
         val event = UsageEvents.Event()
-
-        var lastResumedPackage: String? = null
 
         while (usageEvents.hasNextEvent()) {
             usageEvents.getNextEvent(event)
-            // We only care about ACTIVITY_RESUMED events for locking
+            
             if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                lastResumedPackage = event.packageName
-            }
-        }
+                val pkgName = event.packageName
+                val className = event.className ?: ""
+                
+                lastResumedPackage = pkgName
+                lastProcessedEventTime = event.timeStamp
 
-        if (lastResumedPackage != null) {
-            if (cachedLockedAppList.contains(lastResumedPackage)) {
-                if (!window.isOpen()) {
-                    Handler(Looper.getMainLooper()).post {
-                        window.open()
+                // Improved sensitive page detection
+                val isSensitivePage = className.lowercase().contains("deviceadmin") || 
+                                     className.lowercase().contains("devicepolicy")
+
+                if (cachedLockedAppList.contains(pkgName)) {
+                    // Lock if package changed OR it's a sensitive page within an unlocked package
+                    if (pkgName != currentlyUnlockedPackage || isSensitivePage) {
+                        if (!window.isOpen()) {
+                            Handler(Looper.getMainLooper()).post {
+                                window.open()
+                            }
+                        }
+                    }
+                } else if (pkgName != packageName) {
+                    if (window.isOpen()) {
+                        Handler(Looper.getMainLooper()).post { window.close() }
                     }
                 }
             }
+        }
+
+        if (window.wasJustUnlocked()) {
+            currentlyUnlockedPackage = lastResumedPackage
         }
     }
 }

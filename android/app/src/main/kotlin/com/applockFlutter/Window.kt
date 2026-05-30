@@ -17,7 +17,6 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import java.security.MessageDigest
 
-
 @SuppressLint("InflateParams")
 class Window(private val context: Context) {
     private val mView: View
@@ -30,6 +29,8 @@ class Window(private val context: Context) {
     private var mPinLockView: PinLockView? = null
     private var mIndicatorDots: IndicatorDots? = null
     
+    private var justUnlocked: Boolean = false
+
     private val mPinLockListener: PinLockListener = object : PinLockListener {
         override fun onComplete(pin: String) {
             pinCode = pin
@@ -63,7 +64,6 @@ class Window(private val context: Context) {
         mPinLockView!!.attachIndicatorDots(mIndicatorDots)
         mPinLockView!!.setPinLockListener(mPinLockListener)
         mPinLockView!!.pinLength = 6
-        // Using a standard color if ic_launcher_background is not a color resource
         mPinLockView!!.textColor = ContextCompat.getColor(context, android.R.color.white)
         mIndicatorDots!!.indicatorType = IndicatorDots.IndicatorType.FILL_WITH_ANIMATION
     }
@@ -71,6 +71,7 @@ class Window(private val context: Context) {
     fun open() {
         try {
             if (mView.parent == null) {
+                justUnlocked = false
                 mWindowManager.addView(mView, mParams)
             }
         } catch (e: Exception) {
@@ -80,6 +81,12 @@ class Window(private val context: Context) {
 
     fun isOpen(): Boolean {
         return mView.parent != null
+    }
+    
+    fun wasJustUnlocked(): Boolean {
+        val result = justUnlocked
+        justUnlocked = false
+        return result
     }
 
     fun close() {
@@ -131,6 +138,7 @@ class Window(private val context: Context) {
                 if (hashedEntered == storedHash) {
                     failedAttempts = 0
                     txtView!!.visibility = View.GONE
+                    justUnlocked = true
                     close()
                 } else {
                     failedAttempts++
@@ -151,6 +159,7 @@ class Window(private val context: Context) {
                     }
                 }
             } else {
+                justUnlocked = true
                 close()
             }
         } catch (e: Exception) {
