@@ -27,7 +27,7 @@ class AppsController extends GetxController implements GetxService {
   bool addToAppsLoading = false;
   bool hasPasscode = false;
 
-  List<String> excludedApps = ["com.android.settings"];
+  List<String> excludedApps = [];
 
   int appSearchUpdate = 1;
   int addRemoveToUnlockUpdate = 2;
