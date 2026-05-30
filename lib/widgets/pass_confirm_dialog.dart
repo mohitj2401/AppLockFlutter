@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:get/state_manager.dart';
+import 'package:get/get.dart';
 import 'package:app_lock_flutter/executables/controllers/apps_controller.dart';
+import 'package:app_lock_flutter/executables/controllers/password_controller.dart';
 
 import '../services/constant.dart';
 
@@ -25,10 +26,12 @@ class PasswordCorfirmDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.pop(context, false);
-        return false;
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          Navigator.pop(context, false);
+        }
       },
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -68,17 +71,19 @@ class PasswordCorfirmDialog extends StatelessWidget {
                             autofocus: true,
                             style: Theme.of(context)
                                 .textTheme
-                                .subtitle1!
+                                .titleMedium!
                                 .copyWith(color: Colors.white),
-                            onChanged: (value) {
+                            onChanged: (value) async {
                               Fluttertoast.cancel();
-                              if (value.length == 6 &&
-                                  value == state.getPasscode()) {
-                                if (Navigator.canPop(context)) {
-                                  Navigator.pop(context, true);
+                              if (value.length == 6) {
+                                bool isValid = await Get.find<PasswordController>().verifyPasscode(value);
+                                if (isValid) {
+                                  if (Navigator.canPop(context)) {
+                                    Navigator.pop(context, true);
+                                  }
+                                } else {
+                                  Fluttertoast.showToast(msg: "Invalid password");
                                 }
-                              } else if (value.length == 6) {
-                                Fluttertoast.showToast(msg: "Invalid password");
                               }
                             },
                             keyboardType: TextInputType.phone,
@@ -94,7 +99,7 @@ class PasswordCorfirmDialog extends StatelessWidget {
                               hintText: 'Enter Passcode...',
                               labelStyle: Theme.of(context)
                                   .textTheme
-                                  .subtitle1!
+                                  .titleMedium!
                                   .copyWith(color: Colors.white),
                               isCollapsed: true,
                               filled: true,

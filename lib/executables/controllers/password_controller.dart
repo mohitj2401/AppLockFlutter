@@ -1,9 +1,14 @@
 import 'dart:developer';
-
+import 'dart:math' hide log;
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:app_lock_flutter/main.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app_lock_flutter/executables/controllers/apps_controller.dart';
+import 'package:app_lock_flutter/executables/controllers/method_channel_controller.dart';
 
 import '../../services/constant.dart';
 
@@ -32,8 +37,7 @@ class PasswordController extends GetxController implements GetxService {
     update();
   }
 
-  savePasscode() {
-    // if(addedPassCode.isNotEmpty && passcode.is)
+  Future<void> savePasscode() async {
     if (!isConfirm) {
       if (passcode.isNotEmpty) {
         isConfirm = true;
@@ -45,12 +49,49 @@ class PasswordController extends GetxController implements GetxService {
       }
     } else {
       if (addedPassCode == passcode) {
-        prefs.setString(AppConstants.setPassCode, passcode);
+        // Generate secure random salt as hex string of 32 characters
+        final random = Random.secure();
+        final salt = List<int>.generate(16, (i) => random.nextInt(256))
+            .map((e) => e.toRadixString(16).padLeft(2, '0'))
+            .join();
+
+        // Hash passcode + salt using SHA-256
+        final bytes = utf8.encode(passcode + salt);
+        final hash = sha256.convert(bytes).toString();
+
+        // Store hash and salt in secure storage
+        const storage = FlutterSecureStorage();
+        await storage.write(key: AppConstants.setPassCode, value: hash);
+        await storage.write(key: "passcode_salt", value: salt);
+
+        // Remove from SharedPreferences if exists
+        await prefs.remove(AppConstants.setPassCode);
+
+        // Update AppsController hasPasscode state
+        final appsController = Get.find<AppsController>();
+        appsController.hasPasscode = true;
+        appsController.update();
+
+        // Update Native credentials
+        await Get.find<MethodChannelController>().setPassword();
+
         navigatorKey.currentState!.pop();
       } else {
         Fluttertoast.showToast(msg: "passcode does not match");
       }
     }
+  }
+
+  Future<bool> verifyPasscode(String entered) async {
+    const storage = FlutterSecureStorage();
+    final storedHash = await storage.read(key: AppConstants.setPassCode);
+    final salt = await storage.read(key: "passcode_salt");
+    if (storedHash == null || salt == null) {
+      return false;
+    }
+    final bytes = utf8.encode(entered + salt);
+    final hash = sha256.convert(bytes).toString();
+    return hash == storedHash;
   }
 
   clearData() {

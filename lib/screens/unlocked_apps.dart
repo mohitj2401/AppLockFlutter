@@ -1,9 +1,8 @@
 import 'dart:ui';
 
 import 'package:app_lock_flutter/executables/controllers/method_channel_controller.dart';
-import 'package:app_lock_flutter/executables/controllers/password_controller.dart';
 import 'package:app_lock_flutter/widgets/confirmation_dialog.dart';
-import 'package:device_apps/device_apps.dart';
+import 'package:installed_apps/app_info.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_switch/flutter_switch.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -22,14 +21,12 @@ class UnlockedAppScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
-    return WillPopScope(
-      onWillPop: () async {
-        return false;
-      },
+    return PopScope(
+      canPop: false,
       child: Scaffold(
-        backgroundColor: Theme.of(context).backgroundColor,
+        backgroundColor: Theme.of(context).colorScheme.background,
         appBar: AppBar(
-          backgroundColor: Theme.of(context).backgroundColor,
+          backgroundColor: Theme.of(context).colorScheme.background,
           leading: Padding(
             padding: const EdgeInsets.all(6.0),
             child: Container(
@@ -72,7 +69,7 @@ class UnlockedAppScreen extends StatelessWidget {
           centerTitle: true,
           title: Text(
             "AppLock",
-            style: Theme.of(context).textTheme.bodyText1!.copyWith(
+            style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                   color: Colors.white,
                 ),
           ),
@@ -90,9 +87,7 @@ class UnlockedAppScreen extends StatelessWidget {
                 ),
                 child: IconButton(
                   onPressed: () {
-                    if (Get.find<PasswordController>()
-                        .prefs
-                        .containsKey(AppConstants.setPassCode)) {
+                    if (Get.find<AppsController>().hasPasscode) {
                       showComfirmPasswordDialog(context).then((value) {
                         if (value as bool) {
                           Navigator.push(
@@ -186,7 +181,7 @@ class UnlockedAppScreen extends StatelessWidget {
                       padding: EdgeInsets.zero,
                       itemCount: appsController.unLockList.length,
                       itemBuilder: (context, index) {
-                        Application app = appsController.unLockList[index];
+                        AppInfo app = appsController.unLockList[index];
                         return Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
@@ -223,10 +218,10 @@ class UnlockedAppScreen extends StatelessWidget {
                                       ),
                                     ],
                                   ),
-                                  child: app is ApplicationWithIcon
+                                  child: app.icon != null
                                       ? CircleAvatar(
                                           backgroundImage:
-                                              MemoryImage(app.icon),
+                                              MemoryImage(app.icon!),
                                           backgroundColor: Theme.of(context)
                                               .primaryColorDark,
                                         )
@@ -247,17 +242,17 @@ class UnlockedAppScreen extends StatelessWidget {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        app.appName,
+                                        app.name,
                                         style: Theme.of(context)
                                             .textTheme
-                                            .bodyText1!
+                                            .bodyLarge!
                                             .copyWith(color: Colors.white),
                                       ),
                                       Text(
                                         "${app.versionName}",
                                         style: Theme.of(context)
                                             .textTheme
-                                            .subtitle1!
+                                            .titleMedium!
                                             .copyWith(
                                               color: Colors.white,
                                               fontSize: 12,
@@ -285,14 +280,13 @@ class UnlockedAppScreen extends StatelessWidget {
                                             Theme.of(context).primaryColorDark,
                                         toggleSize: 20.0,
                                         value: appsController.selectLockList
-                                            .contains(app.appName),
+                                            .contains(app.name),
                                         borderRadius: 30.0,
                                         padding: 2.0,
                                         showOnOff: false,
                                         onToggle: (val) {
-                                          if ("${Get.find<AppsController>().getPasscode()}" !=
-                                              "") {
-                                            appsController.addToLockedApps(
+                                           if (Get.find<AppsController>().hasPasscode) {
+                                             appsController.addToLockedApps(
                                               app,
                                               context,
                                             );

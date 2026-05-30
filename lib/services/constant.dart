@@ -56,12 +56,11 @@ String getMailUrl(String email, [String subject = '']) {
 }
 
 Future<void> launchInBrowser(String url) async {
-  if (await canLaunch(url)) {
-    await launch(
-      url,
-      forceSafariVC: false,
-      forceWebView: false,
-      headers: <String, String>{'my_header_key': 'my_header_value'},
+  final Uri uri = Uri.parse(url);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
     );
   } else {
     Fluttertoast.showToast(msg: 'Invalid url {$url}');
@@ -75,12 +74,11 @@ Future<void> launchWebsite(String url) async {
       url = 'https://$url';
     }
   }
-  if (await canLaunch(url)) {
-    await launch(
-      url,
-      forceSafariVC: false,
-      forceWebView: false,
-      // headers: <String, String>{'my_header_key': 'my_header_value'},
+  final Uri uri = Uri.parse(url);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(
+      uri,
+      mode: LaunchMode.platformDefault,
     );
   } else {
     log('Could not launch $url');

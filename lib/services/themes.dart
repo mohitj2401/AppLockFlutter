@@ -52,34 +52,20 @@ class CustomTheme {
     ),
     typography: Typography.material2021(),
     textTheme: TextTheme(
-      button: GoogleFonts.montserrat(
+      labelLarge: GoogleFonts.montserrat(
         fontWeight: FontWeight.w400,
         color: textSecondary,
         fontSize: 14.0,
       ),
-
-      // titleLarge: ,
-      // titleMedium: ,
-      // titleSmall: ,
-      subtitle1: GoogleFonts.epilogue(
-        // fontSize: 16.0,
+      titleMedium: GoogleFonts.epilogue(
         fontWeight: FontWeight.w400,
       ),
-      bodyText1: GoogleFonts.epilogue(
-        // fontSize: 14.0,
+      bodyLarge: GoogleFonts.epilogue(
         fontWeight: FontWeight.w400,
       ),
-      bodyText2: GoogleFonts.epilogue(
-        // fontSize: 12.0,
+      bodyMedium: GoogleFonts.epilogue(
         fontWeight: FontWeight.w500,
       ),
-
-      headline1: GoogleFonts.epilogue(),
-      headline2: GoogleFonts.epilogue(),
-      headline3: GoogleFonts.epilogue(),
-      headline4: GoogleFonts.epilogue(),
-      headline5: GoogleFonts.epilogue(),
-      headline6: GoogleFonts.epilogue(),
     ),
     colorScheme: ColorScheme.fromSwatch(primarySwatch: colorCustom)
         .copyWith(background: backgroundDark)

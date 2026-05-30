@@ -21,10 +21,8 @@ class _SetPasscodeState extends State<SetPasscode> {
   @override
   Widget build(BuildContext context) {
     var size = MediaQuery.of(context).size;
-    return WillPopScope(
-      onWillPop: () async {
-        return false;
-      },
+    return PopScope(
+      canPop: false,
       child: Scaffold(
         bottomNavigationBar: SizedBox(
           height: 60,
@@ -57,7 +55,7 @@ class _SetPasscodeState extends State<SetPasscode> {
           ),
         ),
         appBar: AppBar(
-          backgroundColor: Theme.of(context).backgroundColor,
+          backgroundColor: Theme.of(context).colorScheme.background,
           centerTitle: true,
           iconTheme: const IconThemeData(
             color: Colors.white,
@@ -73,7 +71,7 @@ class _SetPasscodeState extends State<SetPasscode> {
           ),
           title: Text(
             "Set Passcode",
-            style: Theme.of(context).textTheme.bodyText1!.copyWith(
+            style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                   color: Colors.white,
                 ),
           ),
@@ -105,7 +103,7 @@ class _SetPasscodeState extends State<SetPasscode> {
                   return Text(
                     state.isConfirm ? "Confirm Passcode" : "Set Passcode",
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.subtitle1!.copyWith(
+                    style: Theme.of(context).textTheme.titleMedium!.copyWith(
                           color: Colors.white,
                         ),
                   );
