@@ -136,31 +136,21 @@ class ForegroundService : Service() {
         val usageEvents = mUsageStatsManager.queryEvents(time - 1000, time)
         val event = UsageEvents.Event()
 
-        var lastEvent: UsageEvents.Event? = null
+        var lastResumedPackage: String? = null
 
         while (usageEvents.hasNextEvent()) {
             usageEvents.getNextEvent(event)
             // We only care about ACTIVITY_RESUMED events for locking
             if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                lastEvent = UsageEvents.Event(event)
+                lastResumedPackage = event.packageName
             }
         }
 
-        if (lastEvent != null) {
-            val pkgName = lastEvent.packageName
-            if (cachedLockedAppList.contains(pkgName)) {
+        if (lastResumedPackage != null) {
+            if (cachedLockedAppList.contains(lastResumedPackage)) {
                 if (!window.isOpen()) {
                     Handler(Looper.getMainLooper()).post {
                         window.open()
-                    }
-                }
-            } else {
-                // If the app is NOT in the locked list, and it's NOT our own app, close the window
-                // (Assuming "com.applockFlutter" is your package name)
-                if (pkgName != packageName && window.isOpen()) {
-                    Handler(Looper.getMainLooper()).post {
-                        // Optional: only close if user has successfully unlocked 
-                        // For now, keeping it simple
                     }
                 }
             }
