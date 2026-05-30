@@ -1,7 +1,9 @@
 package com.applockFlutter
 
+import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
@@ -9,6 +11,7 @@ import android.content.*
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import java.util.*
 
@@ -37,6 +40,7 @@ class ForegroundService : Service() {
             .setContentTitle("App Lock is running")
             .setContentText("Protecting your apps")
             .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setOngoing(true)
             .build()
         startForeground(1, notification)
         
@@ -51,10 +55,25 @@ class ForegroundService : Service() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         val saveAppData: SharedPreferences = applicationContext.getSharedPreferences("save_app_data", Context.MODE_PRIVATE)
         val isStopped = saveAppData.getString("is_stopped", "0")
+        
         if (isStopped == "1") {
+            // Watchdog: Schedule a restart via AlarmManager in 1 second
             val restartServiceIntent = Intent(applicationContext, this.javaClass)
             restartServiceIntent.setPackage(packageName)
-            startService(restartServiceIntent)
+            
+            val restartServicePendingIntent = PendingIntent.getService(
+                applicationContext, 
+                1, 
+                restartServiceIntent, 
+                PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            val alarmService = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmService.set(
+                AlarmManager.ELAPSED_REALTIME, 
+                SystemClock.elapsedRealtime() + 1000, 
+                restartServicePendingIntent
+            )
         }
         super.onTaskRemoved(rootIntent)
     }
