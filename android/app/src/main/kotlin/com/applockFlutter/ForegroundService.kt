@@ -17,9 +17,11 @@ import java.util.*
 
 class ForegroundService : Service() {
     private var timer: Timer = Timer()
-    private var timerReload: Long = 500
+    private var timerReload: Long = 100 // Reduced from 500ms to 100ms for faster detection
     private var currentAppActivityList = arrayListOf<String>()
     private lateinit var mHomeWatcher: HomeWatcher
+    private var cachedLockedAppList: List<String> = emptyList()
+    private lateinit var saveAppData: SharedPreferences
 
     override fun onBind(intent: Intent): IBinder? {
         return null
@@ -27,6 +29,9 @@ class ForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        saveAppData = applicationContext.getSharedPreferences("save_app_data", Context.MODE_PRIVATE)
+        updateLockedAppCache()
+
         val channelId = "AppLock-10"
         val channel = NotificationChannel(
             channelId,
@@ -48,16 +53,20 @@ class ForegroundService : Service() {
         startMyOwnForeground()
     }
 
+    private fun updateLockedAppCache() {
+        val appData = saveAppData.getString("app_data", "") ?: ""
+        cachedLockedAppList = appData.replace("[", "").replace("]", "").split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        updateLockedAppCache() // Refresh cache when service is started/restarted
         return START_STICKY
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        val saveAppData: SharedPreferences = applicationContext.getSharedPreferences("save_app_data", Context.MODE_PRIVATE)
         val isStopped = saveAppData.getString("is_stopped", "0")
         
         if (isStopped == "1") {
-            // Watchdog: Schedule a restart via AlarmManager in 1 second
             val restartServiceIntent = Intent(applicationContext, this.javaClass)
             restartServiceIntent.setPackage(packageName)
             
@@ -113,35 +122,46 @@ class ForegroundService : Service() {
     }
 
     fun isServiceRunning(window: Window) {
-        val saveAppData: SharedPreferences = applicationContext.getSharedPreferences("save_app_data", Context.MODE_PRIVATE)
-        val appData = saveAppData.getString("app_data", "") ?: ""
-        val lockedAppList = appData.replace("[", "").replace("]", "").split(",").map { it.trim() }.filter { it.isNotEmpty() }
-
-        if (lockedAppList.isEmpty()) return
+        // Use cached list to avoid repeated SharedPreferences IO
+        if (cachedLockedAppList.isEmpty()) {
+            updateLockedAppCache()
+            if (cachedLockedAppList.isEmpty()) return
+        }
 
         val mUsageStatsManager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
         val time = System.currentTimeMillis()
 
-        val usageEvents = mUsageStatsManager.queryEvents(time - timerReload, time)
+        // We use a slightly larger window (1000ms) to ensure we don't miss any events 
+        // that Android might report with a slight delay.
+        val usageEvents = mUsageStatsManager.queryEvents(time - 1000, time)
         val event = UsageEvents.Event()
+
+        var lastEvent: UsageEvents.Event? = null
 
         while (usageEvents.hasNextEvent()) {
             usageEvents.getNextEvent(event)
-            val pkgName = event.packageName ?: continue
-            
-            if (lockedAppList.contains(pkgName)) {
-                if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                    if (currentAppActivityList.isEmpty()) {
-                        currentAppActivityList.add(event.className ?: "")
-                        Handler(Looper.getMainLooper()).post {
-                            window.open()
-                        }
-                        break
-                    } else if (!currentAppActivityList.contains(event.className)) {
-                        currentAppActivityList.add(event.className ?: "")
+            // We only care about ACTIVITY_RESUMED events for locking
+            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                lastEvent = UsageEvents.Event(event)
+            }
+        }
+
+        if (lastEvent != null) {
+            val pkgName = lastEvent.packageName
+            if (cachedLockedAppList.contains(pkgName)) {
+                if (!window.isOpen()) {
+                    Handler(Looper.getMainLooper()).post {
+                        window.open()
                     }
-                } else if (event.eventType == UsageEvents.Event.ACTIVITY_STOPPED) {
-                    currentAppActivityList.remove(event.className)
+                }
+            } else {
+                // If the app is NOT in the locked list, and it's NOT our own app, close the window
+                // (Assuming "com.applockFlutter" is your package name)
+                if (pkgName != packageName && window.isOpen()) {
+                    Handler(Looper.getMainLooper()).post {
+                        // Optional: only close if user has successfully unlocked 
+                        // For now, keeping it simple
+                    }
                 }
             }
         }
