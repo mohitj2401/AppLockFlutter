@@ -148,4 +148,29 @@ class MethodChannelController extends GetxController implements GetxService {
       log("Failed to Invoke: '${e.message}'.");
     }
   }
+
+  Future<bool> isAdminActive() async {
+    try {
+      return await platform.invokeMethod('isAdminActive');
+    } on PlatformException catch (e) {
+      log("Failed to Invoke: '${e.message}'.");
+      return false;
+    }
+  }
+
+  Future requestAdmin() async {
+    try {
+      await platform.invokeMethod('requestAdmin');
+    } on PlatformException catch (e) {
+      log("Failed to Invoke: '${e.message}'.");
+    }
+  }
+
+  Future removeAdmin() async {
+    try {
+      await platform.invokeMethod('removeAdmin');
+    } on PlatformException catch (e) {
+      log("Failed to Invoke: '${e.message}'.");
+    }
+  }
 }

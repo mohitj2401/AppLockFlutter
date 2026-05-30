@@ -12,10 +12,11 @@ A robust, high-performance AppLock application built with Flutter for Android. T
   - Native Usage Access monitoring for real-time detection.
 - **State Management**: Uses `GetX` for clean and reactive UI updates.
 - **Battery Optimization**: Built-in support for requesting Battery Optimization exemption to prevent the OS from killing the background protection service.
+- **Uninstall Protection**: Optional **Device Administrator** integration that prevents the app from being uninstalled by the user or other apps while active.
 
 ## 🛠 Tech Stack
 - **Flutter**: UI and high-level logic.
-- **Kotlin**: Native Android services and device monitoring.
+- **Kotlin**: Native Android services, device monitoring, and Device Admin.
 - **Method Channels**: Seamless communication between Flutter and Native layers.
 - **Gradle 8.14 & AGP 8.11.1**: Latest build tools for performance and security.
 - **NDK 28**: Support for 16KB memory page sizes required by newer Android hardware.
@@ -25,6 +26,7 @@ A robust, high-performance AppLock application built with Flutter for Android. T
 - **Usage Stats Access**: To monitor which app is currently in the foreground.
 - **Notification Access**: For persistent foreground service notifications.
 - **Ignore Battery Optimizations**: To ensure 24/7 protection.
+- **Device Administrator**: (Optional) To prevent app uninstallation.
 
 ## 📸 Screenshots
 <img src="https://user-images.githubusercontent.com/56929825/210130743-d30f5155-3b4e-4d49-9c73-718f20901592.jpg" width="150" height="320"> <img src="https://user-images.githubusercontent.com/56929825/210130744-7f2e208a-5447-49c8-bc35-1c6ccfe48a48.jpg" width="150" height="320"> 
