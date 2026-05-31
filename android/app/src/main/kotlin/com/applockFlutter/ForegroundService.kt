@@ -125,20 +125,24 @@ class ForegroundService : Service() {
         val usageEvents = mUsageStatsManager.queryEvents(time - 5000, time)
         val event = UsageEvents.Event()
 
-        var latestEvent: UsageEvents.Event? = null
+        var latestPackage: String? = null
+        var latestClass: String? = null
+        var latestTime: Long = 0
 
         while (usageEvents.hasNextEvent()) {
             usageEvents.getNextEvent(event)
             if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                if (latestEvent == null || event.timeStamp > latestEvent!!.timeStamp) {
-                    latestEvent = UsageEvents.Event(event)
+                if (event.timeStamp > latestTime) {
+                    latestPackage = event.packageName
+                    latestClass = event.className
+                    latestTime = event.timeStamp
                 }
             }
         }
 
-        if (latestEvent != null) {
-            val pkgName = latestEvent!!.packageName
-            val className = latestEvent!!.className ?: ""
+        if (latestPackage != null) {
+            val pkgName = latestPackage
+            val className = latestClass ?: ""
             
             if (pkgName != lastResumedPackage || className != lastClass) {
                 lastResumedPackage = pkgName
@@ -157,7 +161,6 @@ class ForegroundService : Service() {
                 if (cachedLockedAppList.contains(pkgName) || isSensitivePage) {
                     if (isSensitivePage || pkgName != currentlyUnlockedPackage) {
                         Handler(Looper.getMainLooper()).post {
-                            // Use forceOpen to ensure it stays on top of sensitive system pages
                             window.forceOpen()
                         }
                     }
