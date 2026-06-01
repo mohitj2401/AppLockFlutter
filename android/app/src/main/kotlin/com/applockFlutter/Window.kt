@@ -16,6 +16,7 @@ import com.andrognito.pinlockview.PinLockView
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import java.security.MessageDigest
+import android.content.pm.ActivityInfo
 
 @SuppressLint("InflateParams")
 class Window(private val context: Context) {
@@ -54,6 +55,7 @@ class Window(private val context: Context) {
             or WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
             PixelFormat.TRANSLUCENT
         )
+        mParams.screenOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         layoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
         mView = layoutInflater.inflate(R.layout.pin_activity, null)
 

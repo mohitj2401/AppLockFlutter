@@ -16,7 +16,7 @@
     <application
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:label="AppLockFlutter"
+        android:label="App Lock"
         tools:replace="android:label"
         android:enableOnBackInvokedCallback="true">
 

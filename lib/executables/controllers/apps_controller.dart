@@ -214,7 +214,7 @@ class AppsController extends GetxController implements GetxService {
 
   appSearch() {
     searchedApps.clear();
-    if (searchApkText.text.length > 2) {
+    if (searchApkText.text.isNotEmpty) {
       for (var e in unLockList) {
         if (e.name
             .toUpperCase()
@@ -240,7 +240,7 @@ class AppsController extends GetxController implements GetxService {
           );
         }
       }
-      update([appSearchUpdate]);
     }
+    update([appSearchUpdate]);
   }
 }

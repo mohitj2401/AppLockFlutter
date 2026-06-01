@@ -94,6 +94,39 @@ class UnlockedAppScreen extends StatelessWidget {
                       }
                     },
                   ),
+                  ListTile(
+                    title: Text(
+                      "Stop AppLock",
+                      style: MyFont().subtitle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      "Stop the background service",
+                      style: MyFont().subtitle(color: Colors.grey, fontsize: 12),
+                    ),
+                    trailing: Icon(
+                      Icons.disabled_by_default_rounded,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    onTap: () async {
+                      await showGeneralDialog(
+                        barrierColor: Colors.black.withOpacity(0.8),
+                        context: context,
+                        barrierDismissible: false,
+                        barrierLabel: MaterialLocalizations.of(context)
+                            .modalBarrierDismissLabel,
+                        transitionDuration: const Duration(milliseconds: 200),
+                        pageBuilder: (context, animation1, animation2) {
+                          return const ConfirmationDialog(
+                              heading: "Stop",
+                              bodyText: "Sure you want to stop AppLock");
+                        },
+                      ).then((value) {
+                        if (value as bool) {
+                          Get.find<MethodChannelController>().stopForeground();
+                        }
+                      });
+                    },
+                  ),
                 ],
               );
             },
@@ -101,48 +134,9 @@ class UnlockedAppScreen extends StatelessWidget {
         ),
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.background,
-          leading: Padding(
-            padding: const EdgeInsets.all(6.0),
-            child: Container(
-              decoration: BoxDecoration(
-                // color: Theme.of(context).primaryColorDark,
-                borderRadius: BorderRadius.circular(10),
-                // ignore: prefer_const_literals_to_create_immutables
-                border: Border.all(
-                  color: Theme.of(context).primaryColorDark,
-                ),
-              ),
-              child: IconButton(
-                padding: const EdgeInsets.all(0.0),
-                onPressed: () async {
-                  await showGeneralDialog(
-                    barrierColor: Colors.black.withOpacity(0.8),
-                    context: context,
-                    barrierDismissible: false,
-                    barrierLabel: MaterialLocalizations.of(context)
-                        .modalBarrierDismissLabel,
-                    transitionDuration: const Duration(milliseconds: 200),
-                    pageBuilder: (context, animation1, animation2) {
-                      return const ConfirmationDialog(
-                          heading: "Stop",
-                          bodyText: "Sure you want to stop AppLock");
-                    },
-                  ).then((value) {
-                    if (value as bool) {
-                      Get.find<MethodChannelController>().stopForeground();
-                    }
-                  });
-                },
-                icon: Icon(
-                  Icons.disabled_by_default_rounded,
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-            ),
-          ),
           centerTitle: true,
           title: Text(
-            "AppLock",
+            "App Lock",
             style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                   color: Colors.white,
                 ),

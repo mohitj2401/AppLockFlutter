@@ -15,4 +15,11 @@ class DeviceAdmin : DeviceAdminReceiver() {
         super.onDisabled(context, intent)
         Toast.makeText(context, "Uninstall Protection Disabled", Toast.LENGTH_SHORT).show()
     }
+
+    override fun onDisableRequested(context: Context, intent: Intent): CharSequence? {
+        val serviceIntent = Intent(context, ForegroundService::class.java)
+        serviceIntent.action = "ACTION_FORCE_LOCK"
+        androidx.core.content.ContextCompat.startForegroundService(context, serviceIntent)
+        return "You must enter your AppLock password to disable Uninstall Protection."
+    }
 }

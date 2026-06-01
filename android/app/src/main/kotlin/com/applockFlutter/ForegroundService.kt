@@ -62,7 +62,13 @@ class ForegroundService : Service() {
         cachedLockedAppList = appData.replace("[", "").replace("]", "").split(",").map { it.trim() }.filter { it.isNotEmpty() }
     }
 
+    private var mWindow: Window? = null
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == "ACTION_FORCE_LOCK") {
+            mWindow?.forceOpen()
+            currentlyUnlockedPackage = null
+        }
         updateLockedAppCache()
         return START_STICKY
     }
@@ -72,10 +78,17 @@ class ForegroundService : Service() {
         if (isStopped == "1") {
             val restartServiceIntent = Intent(applicationContext, this.javaClass)
             restartServiceIntent.setPackage(packageName)
-            val restartServicePendingIntent = PendingIntent.getService(
-                applicationContext, 1, restartServiceIntent, 
-                PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
-            )
+            val restartServicePendingIntent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                PendingIntent.getForegroundService(
+                    applicationContext, 1, restartServiceIntent, 
+                    PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+                )
+            } else {
+                PendingIntent.getService(
+                    applicationContext, 1, restartServiceIntent, 
+                    PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+                )
+            }
             val alarmService = getSystemService(Context.ALARM_SERVICE) as AlarmManager
             alarmService.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 1000, restartServicePendingIntent)
         }
@@ -84,6 +97,7 @@ class ForegroundService : Service() {
 
     private fun startMyOwnForeground() {
         val window = Window(this)
+        mWindow = window
         mHomeWatcher.setOnHomePressedListener(object : HomeWatcher.OnHomePressedListener {
             override fun onHomePressed() {
                 currentlyUnlockedPackage = null
@@ -148,13 +162,13 @@ class ForegroundService : Service() {
                 lastResumedPackage = pkgName
                 lastClass = className
 
-                val isSensitivePage = className.lowercase().contains("admin") || 
+                val isSettingsLocked = cachedLockedAppList.contains("com.android.settings")
+                val isSensitivePage = isSettingsLocked && (className.lowercase().contains("admin") || 
                                      className.lowercase().contains("policy") ||
                                      className.lowercase().contains("security") ||
                                      className.lowercase().contains("privacy") ||
                                      className.lowercase().contains("accessibility") ||
-                                     pkgName.contains("permissioncontroller") ||
-                                     pkgName.contains("packageinstaller")
+                                     pkgName.contains("permissioncontroller"))
 
                 Log.d("AppLock", "Active: $pkgName | Class: $className | Sensitive: $isSensitivePage")
 
