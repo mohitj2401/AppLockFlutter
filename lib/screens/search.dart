@@ -24,36 +24,33 @@ class _SearchPageState extends State<SearchPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.background,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ),
-        leading: Padding(
-          padding: const EdgeInsets.all(6.0),
-          child: Container(
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: Theme.of(context).primaryColorDark,
-              ),
+              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.keyboard_arrow_left,
-                color: Colors.white,
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-              },
+            child: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Theme.of(context).primaryColor,
+              size: 20,
             ),
           ),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
         title: Text(
-          "Search App",
-          style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+          "Search Apps",
+          style: Theme.of(context).textTheme.titleLarge!.copyWith(
                 color: Colors.white,
+                fontWeight: FontWeight.bold,
               ),
         ),
       ),
@@ -61,161 +58,136 @@ class _SearchPageState extends State<SearchPage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.all(16.0),
             child: GetBuilder<AppsController>(builder: (state) {
-              return Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: Theme.of(context).primaryColorDark,
+              return TextField(
+                controller: state.searchApkText,
+                onChanged: (value) {
+                  state.appSearch();
+                },
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                decoration: InputDecoration(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
                   ),
-                ),
-                child: TextField(
-                  controller: state.searchApkText,
-                  onChanged: (value) {
-                    state.appSearch();
-                  },
-                  style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                        color: Colors.white,
-                      ),
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 14,
+                  filled: true,
+                  fillColor: Theme.of(context).primaryColorDark.withOpacity(0.3),
+                  hintText: 'Search for an app...',
+                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).primaryColor,
+                      width: 1.5,
                     ),
-                    isCollapsed: true,
-                    filled: true,
-                    hintText: 'Search apps',
-                    hintStyle: Theme.of(context).textTheme.titleMedium!.copyWith(
-                          color: Colors.white,
-                        ),
-                    prefixIcon: const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Icon(
-                        Icons.search,
-                        color: Colors.white,
-                      ),
-                    ),
-                    border: InputBorder.none,
                   ),
                 ),
               );
             }),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: MySeparator(
-              color: Theme.of(context).primaryColor,
-              dashWidthget: 3.0,
-            ),
-          ),
           Expanded(
             child: GetBuilder<AppsController>(
                 id: Get.find<AppsController>().appSearchUpdate,
                 builder: (state) {
+                  if (state.searchedApps.isEmpty && state.searchApkText.text.isNotEmpty) {
+                    return Center(
+                      child: Text(
+                        "No apps found",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.5),
+                          fontSize: 16,
+                        ),
+                      ),
+                    );
+                  }
                   return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: state.searchedApps.length,
                     itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
+                      final app = state.searchedApps[index].application!;
+                      final isLocked = state.selectLockList.contains(app.appName);
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColorDark.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(context).primaryColorDark.withOpacity(0.3),
+                          ),
                         ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: Theme.of(context).primaryColorDark,
-                            ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
                           ),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Container(
-                                margin: const EdgeInsets.symmetric(
-                                  vertical: 10,
-                                  horizontal: 14,
-                                ),
-                                height: 50,
-                                width: 50,
-                                decoration: BoxDecoration(
-                                  // color: Theme.of(context).primaryColorDark,
-                                  borderRadius: BorderRadius.circular(10),
-                                  // ignore: prefer_const_literals_to_create_immutables
-                                ),
-                                child: Image.memory(
-                                  state.getAppIcon(
-                                    state.searchedApps[index].application!
-                                        .appName,
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: SizedBox(
+                                  height: 48,
+                                  width: 48,
+                                  child: Image.memory(
+                                    state.getAppIcon(app.appName),
+                                    fit: BoxFit.cover,
                                   ),
                                 ),
                               ),
+                              const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      state.searchedApps[index].application!
-                                          .appName,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyLarge!
-                                          .copyWith(color: Colors.white),
+                                      app.appName,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 16,
+                                      ),
                                     ),
+                                    const SizedBox(height: 4),
                                     Text(
-                                      state.searchedApps[index].application!
-                                          .versionName,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium!
-                                          .copyWith(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                          ),
+                                      app.versionName ?? '',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.5),
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                               GetBuilder<AppsController>(
                                 builder: (appLockCtrl) {
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                    ),
-                                    child: FlutterSwitch(
-                                      width: 50.0,
-                                      height: 25.0,
-                                      valueFontSize: 25.0,
-                                      toggleColor: Colors.white,
-                                      activeColor:
-                                          Theme.of(context).primaryColor,
-                                      inactiveColor:
-                                          Theme.of(context).primaryColorDark,
-                                      toggleSize: 20.0,
-                                      value: state.selectLockList.contains(state
-                                          .searchedApps[index]
-                                          .application!
-                                          .appName),
-                                      borderRadius: 30.0,
-                                      padding: 2.0,
-                                      showOnOff: false,
-                                      onToggle: (val) {
-                                        if (Get.find<AppsController>().hasPasscode) {
-                                          state
-                                              .addRemoveFromLockedAppsFromSearch(
-                                            state.searchedApps[index]
-                                                .application!,
-                                          );
-                                        } else {
-                                          Fluttertoast.showToast(
-                                              msg: "Set password");
-                                        }
-                                      },
-                                    ),
+                                  return FlutterSwitch(
+                                    width: 52.0,
+                                    height: 28.0,
+                                    valueFontSize: 25.0,
+                                    toggleColor: Colors.white,
+                                    activeColor: Theme.of(context).primaryColor,
+                                    inactiveColor: Theme.of(context).primaryColorDark,
+                                    toggleSize: 22.0,
+                                    value: state.selectLockList.contains(app.appName),
+                                    borderRadius: 30.0,
+                                    padding: 2.0,
+                                    showOnOff: false,
+                                    onToggle: (val) {
+                                      if (Get.find<AppsController>().hasPasscode) {
+                                        state.addRemoveFromLockedAppsFromSearch(app);
+                                      } else {
+                                        Fluttertoast.showToast(msg: "Set password first");
+                                      }
+                                    },
                                   );
                                 },
                               ),

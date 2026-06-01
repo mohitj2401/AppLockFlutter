@@ -16,7 +16,7 @@ import com.andrognito.pinlockview.PinLockView
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import java.security.MessageDigest
-
+import android.content.pm.ActivityInfo
 
 @SuppressLint("InflateParams")
 class Window(private val context: Context) {
@@ -30,6 +30,8 @@ class Window(private val context: Context) {
     private var mPinLockView: PinLockView? = null
     private var mIndicatorDots: IndicatorDots? = null
     
+    private var justUnlocked: Boolean = false
+
     private val mPinLockListener: PinLockListener = object : PinLockListener {
         override fun onComplete(pin: String) {
             pinCode = pin
@@ -47,9 +49,13 @@ class Window(private val context: Context) {
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN 
+            or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL 
+            or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+            or WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
             PixelFormat.TRANSLUCENT
         )
+        mParams.screenOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         layoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
         mView = layoutInflater.inflate(R.layout.pin_activity, null)
 
@@ -63,7 +69,6 @@ class Window(private val context: Context) {
         mPinLockView!!.attachIndicatorDots(mIndicatorDots)
         mPinLockView!!.setPinLockListener(mPinLockListener)
         mPinLockView!!.pinLength = 6
-        // Using a standard color if ic_launcher_background is not a color resource
         mPinLockView!!.textColor = ContextCompat.getColor(context, android.R.color.white)
         mIndicatorDots!!.indicatorType = IndicatorDots.IndicatorType.FILL_WITH_ANIMATION
     }
@@ -71,24 +76,50 @@ class Window(private val context: Context) {
     fun open() {
         try {
             if (mView.parent == null) {
+                justUnlocked = false
                 mWindowManager.addView(mView, mParams)
+                Log.d("AppLock", "Window added to WindowManager")
             }
         } catch (e: Exception) {
-            Log.e("Window", "Error opening window", e)
+            Log.e("AppLock", "Error opening window", e)
+        }
+    }
+
+    fun forceOpen() {
+        try {
+            justUnlocked = false
+            if (mView.parent != null) {
+                mWindowManager.removeView(mView)
+                Log.d("AppLock", "Existing window removed for force re-add")
+            }
+            mWindowManager.addView(mView, mParams)
+            Log.d("AppLock", "Window force added to WindowManager")
+        } catch (e: Exception) {
+            Log.e("AppLock", "Error force opening window", e)
         }
     }
 
     fun isOpen(): Boolean {
         return mView.parent != null
     }
+    
+    fun wasJustUnlocked(): Boolean {
+        val result = justUnlocked
+        if (result) {
+            justUnlocked = false
+            Log.d("AppLock", "Reporting wasJustUnlocked = true")
+        }
+        return result
+    }
 
     fun close() {
         try {
             if (mView.parent != null) {
                 mWindowManager.removeView(mView)
+                Log.d("AppLock", "Window removed from WindowManager")
             }
         } catch (e: Exception) {
-            Log.e("Window", "Error closing window", e)
+            Log.e("AppLock", "Error closing window", e)
         }
     }
 
@@ -129,10 +160,13 @@ class Window(private val context: Context) {
             if (storedHash != null && salt != null) {
                 val hashedEntered = sha256(pinCode + salt)
                 if (hashedEntered == storedHash) {
+                    Log.d("AppLock", "Correct password entered")
                     failedAttempts = 0
                     txtView!!.visibility = View.GONE
+                    justUnlocked = true
                     close()
                 } else {
+                    Log.d("AppLock", "Invalid password attempt")
                     failedAttempts++
                     if (failedAttempts >= 5) {
                         isLockedOut = true
@@ -151,10 +185,12 @@ class Window(private val context: Context) {
                     }
                 }
             } else {
+                Log.d("AppLock", "No password stored, auto-unlocking")
+                justUnlocked = true
                 close()
             }
         } catch (e: Exception) {
-            Log.e("Window", "Error in doneButton", e)
+            Log.e("AppLock", "Error in doneButton", e)
         }
     }
 }

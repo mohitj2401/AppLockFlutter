@@ -1,11 +1,14 @@
-# AppLockFlutter
+# App Lock
 
-A robust, high-performance AppLock application built with Flutter for Android. This project leverages native Android background services and method channels to provide secure application protection.
+A robust, high-performance App Lock application built with Flutter for Android. This project leverages native Android background services and method channels to provide secure application protection.
 
 ## 🚀 Key Features
 - **Modern Android Support**: Fully compatible with Android 16 (API 36).
 - **Native Background Service**: Highly optimized `ForegroundService` written in Kotlin for real-time app monitoring.
 - **Persistence**: Enhanced background stability using `START_STICKY` and `onTaskRemoved` handling to ensure the lock works even after the app is cleared from Recent Apps.
+- **Smart Security**: Automatically locks sensitive device pages (like Settings, Admin, and Permissions) if the device's main Settings app is protected.
+- **Enhanced UI**: Modernized search interfaces, crisp UI elements, and intuitive drawer-based settings.
+- **Landscape Handling**: Custom orientation locking ensures the PIN screen remains portrait and easily usable regardless of the underlying app's rotation.
 - **Security**: 
   - Encrypted storage for passcodes using `EncryptedSharedPreferences`.
   - Android 14+ `RECEIVER_EXPORTED` security compliance.
