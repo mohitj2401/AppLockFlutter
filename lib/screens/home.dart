@@ -36,6 +36,7 @@ class _HomePageState extends State<HomePage> {
           .getPermission(Permission.ignoreBatteryOptimizations);
       Get.find<MethodChannelController>().checkAdminStatus();
       Get.find<MethodChannelController>().checkBatteryStatus();
+      Get.find<MethodChannelController>().checkBiometricStatus();
       getPermissions();
       Get.find<MethodChannelController>().addToLockedAppsMethod();
     });

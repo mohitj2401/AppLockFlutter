@@ -17,15 +17,21 @@ import androidx.core.app.NotificationCompat
 import java.util.*
 
 class ForegroundService : Service() {
+    companion object {
+        var instance: ForegroundService? = null
+        var activeWindow: Window? = null
+    }
+
     private var timer: Timer = Timer()
     private var timerReload: Long = 100 
     private lateinit var mHomeWatcher: HomeWatcher
     private var cachedLockedAppList: List<String> = emptyList()
     private lateinit var saveAppData: SharedPreferences
     
-    private var currentlyUnlockedPackage: String? = null
+    var currentlyUnlockedPackage: String? = null
     private var lastResumedPackage: String? = null
     private var lastClass: String? = null
+    var targetLockedPackage: String? = null
 
     override fun onBind(intent: Intent): IBinder? {
         return null
@@ -33,6 +39,7 @@ class ForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         saveAppData = applicationContext.getSharedPreferences("save_app_data", Context.MODE_PRIVATE)
         updateLockedAppCache()
 
@@ -115,6 +122,8 @@ class ForegroundService : Service() {
     override fun onDestroy() {
         timer.cancel()
         mHomeWatcher.stopWatch()
+        instance = null
+        activeWindow = null
         super.onDestroy()
     }
 
@@ -174,6 +183,7 @@ class ForegroundService : Service() {
 
                 if (cachedLockedAppList.contains(pkgName) || isSensitivePage) {
                     if (isSensitivePage || pkgName != currentlyUnlockedPackage) {
+                        targetLockedPackage = pkgName
                         Handler(Looper.getMainLooper()).post {
                             window.forceOpen()
                         }
@@ -187,7 +197,7 @@ class ForegroundService : Service() {
         }
 
         if (window.wasJustUnlocked()) {
-            currentlyUnlockedPackage = lastResumedPackage
+            currentlyUnlockedPackage = targetLockedPackage ?: lastResumedPackage
             Log.d("AppLock", "Session started for $currentlyUnlockedPackage")
         }
     }

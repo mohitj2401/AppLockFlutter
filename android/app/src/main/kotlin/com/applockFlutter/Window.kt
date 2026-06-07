@@ -17,6 +17,9 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import java.security.MessageDigest
 import android.content.pm.ActivityInfo
+import android.content.Intent
+import android.widget.ImageButton
+import androidx.biometric.BiometricManager
 
 @SuppressLint("InflateParams")
 class Window(private val context: Context) {
@@ -29,8 +32,9 @@ class Window(private val context: Context) {
 
     private var mPinLockView: PinLockView? = null
     private var mIndicatorDots: IndicatorDots? = null
+    private var fingerprintButton: ImageButton? = null
     
-    private var justUnlocked: Boolean = false
+    var justUnlocked: Boolean = false
 
     private val mPinLockListener: PinLockListener = object : PinLockListener {
         override fun onComplete(pin: String) {
@@ -65,6 +69,11 @@ class Window(private val context: Context) {
         mPinLockView = mView.findViewById(R.id.pin_lock_view)
         mIndicatorDots = mView.findViewById(R.id.indicator_dots)
         txtView = mView.findViewById(R.id.alertError)
+        fingerprintButton = mView.findViewById(R.id.fingerprint_button)
+        
+        fingerprintButton?.setOnClickListener {
+            launchFingerprintActivity()
+        }
 
         mPinLockView!!.attachIndicatorDots(mIndicatorDots)
         mPinLockView!!.setPinLockListener(mPinLockListener)
@@ -79,6 +88,8 @@ class Window(private val context: Context) {
                 justUnlocked = false
                 mWindowManager.addView(mView, mParams)
                 Log.d("AppLock", "Window added to WindowManager")
+                ForegroundService.activeWindow = this
+                checkAndLaunchBiometrics()
             }
         } catch (e: Exception) {
             Log.e("AppLock", "Error opening window", e)
@@ -94,6 +105,8 @@ class Window(private val context: Context) {
             }
             mWindowManager.addView(mView, mParams)
             Log.d("AppLock", "Window force added to WindowManager")
+            ForegroundService.activeWindow = this
+            checkAndLaunchBiometrics()
         } catch (e: Exception) {
             Log.e("AppLock", "Error force opening window", e)
         }
@@ -118,8 +131,42 @@ class Window(private val context: Context) {
                 mWindowManager.removeView(mView)
                 Log.d("AppLock", "Window removed from WindowManager")
             }
+            if (ForegroundService.activeWindow == this) {
+                ForegroundService.activeWindow = null
+            }
         } catch (e: Exception) {
             Log.e("AppLock", "Error closing window", e)
+        }
+    }
+
+    private fun isBiometricHardwareAvailable(context: Context): Boolean {
+        val biometricManager = BiometricManager.from(context)
+        val canAuthenticate = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+        return canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS
+    }
+
+    private fun checkAndLaunchBiometrics() {
+        val saveAppData = context.getSharedPreferences("save_app_data", Context.MODE_PRIVATE)
+        val isBiometricEnabled = saveAppData.getBoolean("use_biometric", false)
+        
+        if (isBiometricEnabled && isBiometricHardwareAvailable(context)) {
+            fingerprintButton?.visibility = View.VISIBLE
+            launchFingerprintActivity()
+        } else {
+            fingerprintButton?.visibility = View.GONE
+        }
+    }
+
+    private fun launchFingerprintActivity() {
+        try {
+            val intent = Intent(context, FingerprintActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("AppLock", "Failed to start FingerprintActivity", e)
         }
     }
 

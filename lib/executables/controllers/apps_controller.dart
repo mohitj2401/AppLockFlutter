@@ -137,8 +137,12 @@ class AppsController extends GetxController implements GetxService {
     } catch (e) {
       log("-------$e", name: "addRemoveFromLockedAppsFromSearch");
     }
+    prefs.setString(
+        AppConstants.lockedApps, applicationDataModelToJson(lockList));
+    Get.find<MethodChannelController>().addToLockedAppsMethod();
     addToAppsLoading = false;
     update();
+    update([appSearchUpdate, addRemoveToUnlockUpdate]);
   }
 
   addToLockedApps(AppInfo app, context) async {

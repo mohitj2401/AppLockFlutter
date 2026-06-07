@@ -4,6 +4,7 @@ A robust, high-performance App Lock application built with Flutter for Android. 
 
 ## 🚀 Key Features
 - **Modern Android Support**: Fully compatible with Android 16 (API 36).
+- **Biometric / Fingerprint Unlock**: Securely unlock protected applications using your device's fingerprint or biometric credentials, with custom transparent activity hosting and passcode fallback.
 - **Native Background Service**: Highly optimized `ForegroundService` written in Kotlin for real-time app monitoring.
 - **Persistence**: Enhanced background stability using `START_STICKY` and `onTaskRemoved` handling to ensure the lock works even after the app is cleared from Recent Apps.
 - **Smart Security**: Automatically locks sensitive device pages (like Settings, Admin, and Permissions) if the device's main Settings app is protected.

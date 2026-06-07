@@ -177,13 +177,13 @@ class _SearchPageState extends State<SearchPage> {
                                     activeColor: Theme.of(context).primaryColor,
                                     inactiveColor: Theme.of(context).primaryColorDark,
                                     toggleSize: 22.0,
-                                    value: state.selectLockList.contains(app.appName),
+                                    value: appLockCtrl.selectLockList.contains(app.appName),
                                     borderRadius: 30.0,
                                     padding: 2.0,
                                     showOnOff: false,
                                     onToggle: (val) {
                                       if (Get.find<AppsController>().hasPasscode) {
-                                        state.addRemoveFromLockedAppsFromSearch(app);
+                                        appLockCtrl.addRemoveFromLockedAppsFromSearch(app);
                                       } else {
                                         Fluttertoast.showToast(msg: "Set password first");
                                       }
