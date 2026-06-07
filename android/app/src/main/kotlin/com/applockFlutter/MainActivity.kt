@@ -23,6 +23,7 @@ import io.flutter.plugin.common.MethodChannel
 import java.util.*
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
+import androidx.biometric.BiometricManager
 
 
 class MainActivity: FlutterActivity() {
@@ -63,6 +64,22 @@ class MainActivity: FlutterActivity() {
                     } else {
                         result.error("INVALID_ARGUMENTS", "Hash or salt is null", null)
                     }
+                }
+                "setBiometricEnabled" -> {
+                    val enabled = call.arguments as? Boolean ?: false
+                    saveAppData?.edit()?.putBoolean("use_biometric", enabled)?.apply()
+                    result.success(true)
+                }
+                "isBiometricEnabled" -> {
+                    val enabled = saveAppData?.getBoolean("use_biometric", false) ?: false
+                    result.success(enabled)
+                }
+                "isBiometricAvailable" -> {
+                    val biometricManager = BiometricManager.from(this)
+                    val canAuthenticate = biometricManager.canAuthenticate(
+                        BiometricManager.Authenticators.BIOMETRIC_STRONG
+                    )
+                    result.success(canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS)
                 }
                 "checkOverlayPermission" -> {
                     result.success(Settings.canDrawOverlays(this))

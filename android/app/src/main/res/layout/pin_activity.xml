@@ -73,4 +73,16 @@
         app:keypadTextSize="18dp"
         />
 
+    <ImageButton
+        android:id="@+id/fingerprint_button"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_below="@id/pin_lock_view"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="24dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_fingerprint"
+        android:contentDescription="Fingerprint Unlock"
+        android:visibility="gone" />
+
 </RelativeLayout>

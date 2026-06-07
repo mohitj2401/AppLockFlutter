@@ -18,6 +18,33 @@ class MethodChannelController extends GetxController implements GetxService {
   bool isNotificationPermissionGiven = false;
   bool isDeviceAdminActive = false;
   bool isBatteryOptimizationIgnored = false;
+  bool isBiometricEnabled = false;
+  bool isBiometricAvailable = false;
+
+  Future<bool> checkBiometricStatus() async {
+    try {
+      isBiometricAvailable = (await platform.invokeMethod('isBiometricAvailable') as bool?) ?? false;
+      isBiometricEnabled = (await platform.invokeMethod('isBiometricEnabled') as bool?) ?? false;
+      update();
+      return isBiometricEnabled;
+    } on PlatformException catch (e) {
+      log("Failed to Invoke: '${e.message}'.", name: "checkBiometricStatus");
+      isBiometricAvailable = false;
+      isBiometricEnabled = false;
+      update();
+      return false;
+    }
+  }
+
+  Future<void> setBiometricEnabled(bool enabled) async {
+    try {
+      await platform.invokeMethod('setBiometricEnabled', enabled);
+      isBiometricEnabled = enabled;
+      update();
+    } on PlatformException catch (e) {
+      log("Failed to Invoke: '${e.message}'.", name: "setBiometricEnabled");
+    }
+  }
 
   Future<bool> checkAdminStatus() async {
     isDeviceAdminActive = await isAdminActive();

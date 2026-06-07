@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
 
     <application
         android:name="${applicationName}"
@@ -69,6 +70,14 @@
             android:exported="false">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_TYPE" android:value="App locking and protection service that monitors app launches via usage stats to show overlay." />
         </service>
+
+        <activity
+            android:name=".FingerprintActivity"
+            android:theme="@style/AppCompactTheme"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:launchMode="singleInstance"
+            android:exported="false"/>
 
         <meta-data
             android:name="flutterEmbedding"

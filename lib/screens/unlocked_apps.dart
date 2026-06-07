@@ -94,6 +94,28 @@ class UnlockedAppScreen extends StatelessWidget {
                       }
                     },
                   ),
+                  if (state.isBiometricAvailable)
+                    ListTile(
+                      title: Text(
+                        "Fingerprint Unlock",
+                        style: MyFont().subtitle(color: Colors.white),
+                      ),
+                      subtitle: Text(
+                        "Unlock using device fingerprint",
+                        style: MyFont().subtitle(color: Colors.grey, fontsize: 12),
+                      ),
+                      trailing: Switch(
+                        value: state.isBiometricEnabled,
+                        activeColor: Theme.of(context).primaryColor,
+                        onChanged: (val) async {
+                          if (Get.find<AppsController>().hasPasscode) {
+                            await state.setBiometricEnabled(val);
+                          } else {
+                            Fluttertoast.showToast(msg: "Please set a passcode first");
+                          }
+                        },
+                      ),
+                    ),
                   ListTile(
                     title: Text(
                       "Stop AppLock",
